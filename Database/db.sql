@@ -1,0 +1,37 @@
+CREATE TABLE T_USER (
+	user_id SERIAL PRIMARY KEY UNIQUE NOT NULL,
+	first_name VARCHAR(30) NOT NULL,
+	last_name VARCHAR(30) NOT NULL,
+	balance int NOT NULL,
+	username VARCHAR(30) NOT NULL,
+	pass VARCHAR(255) NOT NULL,
+	created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+	updated_at TIMESTAMP NOT NULL DEFAULT NOW(),
+	"token" VARCHAR(255) NOT NULL
+);
+
+CREATE TABLE T_PRODUCT (
+	product_id SERIAL PRIMARY KEY UNIQUE NOT NULL,
+	produc_name VARCHAR(30) NOT NULL,
+	price int NOT NULL,
+	category VARCHAR(30) NOT NULL,
+	user_id int NOT NULL,
+	imageurl VARCHAR(50),
+	available bool NOT NULL,
+	description VARCHAR(100),
+	created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+	updated_at TIMESTAMP NOT NULL DEFAULT NOW(),
+	FOREIGN KEY (user_id) REFERENCES T_USER (user_id)
+	
+);
+
+
+CREATE TABLE T_Order (
+	order_id SERIAL PRIMARY KEY NOT NULL,
+	user_id int NOT NULL,
+	product_id int NOT NULL,
+	created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+	updated_at TIMESTAMP NOT NULL DEFAULT NOW(),
+	FOREIGN KEY (user_id) REFERENCES T_USER (user_id),
+	FOREIGN KEY (product_id) REFERENCES T_PRODUCT (product_id)
+);
