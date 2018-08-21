@@ -74,6 +74,43 @@ app.post('/signup', async (req,res) => {
 })
 
 
+app.post('/login', async(req,res) => {
+
+    var username = req.body.username;
+    var pass = req.body.pass;
+
+    if(!username) {
+        return res.status(400).json({message : "Please enter your username"});
+    }
+
+    if(!pass) {
+        return res.status(400).json({message : "Please enter your pass"});
+    }
+
+    try {
+        var hash = crypto.createHash('sha256').update(pass).digest('base64');
+
+        var checkUsernameAndPass = await client.query(queryBuilder.checkUsernameAndPass(),[username,hash]);
+        console.log(checkUsernameAndPass.rowCount);
+
+        if(checkUsernameAndPass.rowCount == 0) {
+            return res.status(404).json({message: "User not found"});
+         }
+       
+         console.log(checkUsernameAndPass.rows);
+         return res.status(200).json({token: checkUsernameAndPass.rows[0].token});
+        
+    } catch (err) {
+        console.log(err);
+        return res.status(500).json('There is an error');
+    
+    } finally {
+         await client.end();
+    }
+
+
+})
+
 app.listen(80, () => {
    console.log("Listening on port 80");
 } )

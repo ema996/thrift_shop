@@ -8,7 +8,11 @@ function checkIfUserExist() {
     return `SELECT * FROM T_USER WHERE username=$1`;
 }
 
+function checkUsernameAndPass() {
+    return `SELECT token FROM T_USER WHERE username=$1 AND pass=$2`;
+}
 module.exports = {
     createUser,
-    checkIfUserExist
+    checkIfUserExist,
+    checkUsernameAndPass
 }
