@@ -111,6 +111,75 @@ app.post('/login', async(req,res) => {
 
 })
 
+async function checkUserDependingOnToken(req,res,next){
+    var token = req.headers.token;
+
+    if(!token){
+        return res.status(400).json({message : "please enter header"});
+    }
+
+    try{
+        var result = await client.query(queryBuilder.findUserByToken(),[token]);
+        console.log(result.rows);
+        
+
+        if(result.rowCount==0){
+            return res.status(401).json({message: "Unathorized"});
+        }
+        
+        var user_id = result.rows[0].user_id;
+        res.locals.user_id = user_id;
+        return next();
+
+    }
+    catch(err){
+        console.log(err);
+        return res.status(500).json('There is an error');
+    } finally {
+       
+    }
+}
+
+app.post('/product', checkUserDependingOnToken, async (req,res) => {
+    var product_name = req.body.product_name;
+    var price = req.body.price;
+    var category = req.body.category;
+    var imageurl = req.body.imageurl;
+    var description = req.body.description;
+    var user_id = res.locals.user_id;
+
+    if(!product_name) {
+        return res.status(400).json({message : "Please enter e product name"});
+    }
+
+    if(!price) {
+        return res.status(400).json({message : "Please enter a price"});
+    }
+
+    if(!category) {
+        return res.status(400).json({message : "Please enter a category"});
+    }
+
+    if(!imageurl) {
+        return res.status(400).json({message : "Please enter image url"});
+    }
+    
+
+    try {
+        var queryResult = await client.query(queryBuilder.createProduct(),[product_name, price, category, imageurl,description,user_id]);
+        console.log(queryResult.rows);
+
+        res.status(200).json({product: queryResult.rows});
+    }
+    catch (err) {
+        console.log(err);
+        return res.status(500).json('There is an error'); 
+    }
+    finally {
+        await client.end();
+    }
+})
+
 app.listen(80, () => {
    console.log("Listening on port 80");
 } )
