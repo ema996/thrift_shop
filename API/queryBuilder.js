@@ -18,15 +18,30 @@ function findUserByToken () {
 
 function createProduct(){ 
     return `INSERT INTO T_PRODUCT (product_name, price, category, imageurl,description,user_id,available)
-    VALUES ($1, $2, $3, $4, $5, $6, true) returning *` ;
+    VALUES ($1, $2, $3, $4, $5, $6, true) returning *` };
 
 
+function getProducts (){
+    return `SELECT product_name, user_id,price, category, imageurl
+    FROM T_PRODUCT` ;
 }
 
-module.exports = {
+function getProductById() {
+    return `SELECT * FROM T_PRODUCT WHERE product_id = $1`;
+}
+
+
+function getProductsByUserId(){
+    return `SELECT * FROM T_PRODUCT WHERE user_id = $1`;
+}
+
+module.exports = {  
     createUser,
     checkIfUserExist,
     checkUsernameAndPass,
     findUserByToken,
-    createProduct
+    createProduct,
+    getProducts,
+    getProductById,
+    getProductsByUserId
 }

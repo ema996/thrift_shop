@@ -67,9 +67,7 @@ app.post('/signup', async (req,res) => {
         console.log(err);
         return res.status(500).json('There is an error');
     
-    } finally {
-         await client.end();
-    }
+    } 
 
 })
 
@@ -104,9 +102,7 @@ app.post('/login', async(req,res) => {
         console.log(err);
         return res.status(500).json('There is an error');
     
-    } finally {
-         await client.end();
-    }
+    } 
 
 
 })
@@ -115,7 +111,7 @@ async function checkUserDependingOnToken(req,res,next){
     var token = req.headers.token;
 
     if(!token){
-        return res.status(400).json({message : "please enter header"});
+        return res.status(401).json({message : "Unathorized"});
     }
 
     try{
@@ -135,9 +131,7 @@ async function checkUserDependingOnToken(req,res,next){
     catch(err){
         console.log(err);
         return res.status(500).json('There is an error');
-    } finally {
-       
-    }
+    } 
 }
 
 app.post('/product', checkUserDependingOnToken, async (req,res) => {
@@ -175,10 +169,79 @@ app.post('/product', checkUserDependingOnToken, async (req,res) => {
         console.log(err);
         return res.status(500).json('There is an error'); 
     }
-    finally {
-        await client.end();
-    }
+    
 })
+
+
+app.get('/products', async (req,res)=> {
+    
+
+    try {var result = await client.query(queryBuilder.getProducts());
+    
+
+        if(!result) {
+            return res.status(500).json('There is an error');
+        } 
+    
+        
+        console.log(result.rows);
+        return res.json({"Products: " : result.rows}); 
+    }
+
+    catch (err){
+        console.log(err);
+        return res.status(500).json('There is an error'); 
+    }
+    
+        
+
+})
+
+app.get('/product/:id', async (req,res) => {
+   
+    var product_id = req.params.id;
+    console.log(product_id);
+    
+    try {var result = await client.query(queryBuilder.getProductById(),[product_id]);
+    
+
+        if(!result) {
+            return res.status(500).json('There is an error');
+        } 
+    
+        
+        console.log(result.rows);
+        return res.json({"Product: " : result.rows[0]}); 
+    }
+
+    catch (err){
+        console.log(err);
+        return res.status(500).json('There is an error'); 
+    }
+    
+        
+    
+
+})
+
+
+app.get('/productsByUser', checkUserDependingOnToken, async (req,res) => {
+   try {
+            var user_id = res.locals.user_id;
+
+            var queryResult = await client.query(queryBuilder.getProductsByUserId(),[user_id]);
+            console.log(queryResult.rows);
+
+            res.status(200).json({"Products" : queryResult.rows});
+   }
+    
+   catch (err) {
+    console.log(err);
+    return res.status(500).json('There is an error'); 
+   }
+
+})
+
 
 app.listen(80, () => {
    console.log("Listening on port 80");
