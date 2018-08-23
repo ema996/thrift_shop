@@ -35,7 +35,49 @@ function getProductsByUserId(){
     return `SELECT * FROM T_PRODUCT WHERE user_id = $1`;
 }
 
-module.exports = {  
+
+function checkingPriceAndOwnerId(){
+return `SELECT price, user_id 
+        FROM T_PRODUCT
+        WHERE product_id = $1 AND available=true`
+}
+
+function checkBalance() {
+    return `SELECT balance
+            FROM T_USER 
+            WHERE user_id = $1 `
+}
+
+function createOrder() {
+    return `WITH sub_balance AS (
+        UPDATE T_USER
+         SET balance = balance - $1
+         WHERE user_id = $2
+      ), add_balance AS (
+         UPDATE T_USER
+         SET balance = balance + $1
+         WHERE user_id = $3
+      ), not_available AS (
+          UPDATE T_PRODUCT
+          SET available = false
+          WHERE product_id = $4
+      )
+        INSERT INTO T_ORDER (user_id, product_id)
+        VALUES ($2,$4)
+        returning *;
+    `
+}
+
+function getOrders () {
+    return `
+        SELECT * 
+        FROM T_ORDER
+        WHERE user_id = $1
+    `
+}
+
+
+ module.exports = {  
     createUser,
     checkIfUserExist,
     checkUsernameAndPass,
@@ -43,5 +85,9 @@ module.exports = {
     createProduct,
     getProducts,
     getProductById,
-    getProductsByUserId
+    getProductsByUserId,
+    checkingPriceAndOwnerId,
+    checkBalance,
+    createOrder,
+    getOrders
 }

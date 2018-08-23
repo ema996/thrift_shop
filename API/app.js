@@ -243,6 +243,68 @@ app.get('/productsByUser', checkUserDependingOnToken, async (req,res) => {
 })
 
 
+app.post('/order', checkUserDependingOnToken, async (req,res) => {
+    try {
+        var product_id = req.body.product_id;
+        var user_id = res.locals.user_id;
+
+        if(!product_id) {
+            return res.status(400).json({message: "Please choose some item"});
+        }
+
+        var balanceQuery = await client.query(queryBuilder.checkBalance(), [user_id]);
+        var balance = balanceQuery.rows[0].balance;
+        console.log('Balance is '+balance);
+       
+        var priceAndOwnerIdQuery = await client.query(queryBuilder.checkingPriceAndOwnerId(), [product_id]);
+        
+        if(priceAndOwnerIdQuery.rowCount == 0){
+            console.log('Sth going wrong');
+            return res.status(409).json({message : "Product is not available"});
+        }
+
+        console.log(priceAndOwnerIdQuery.rows[0]);
+        
+
+        var price = priceAndOwnerIdQuery.rows[0].price;
+        var ownerId = priceAndOwnerIdQuery.rows[0].user_id;
+        var orderQuery = await client.query(queryBuilder.createOrder(), [price, user_id, ownerId, product_id]);
+        console.log(orderQuery.rows);
+        return res.status(200).send(orderQuery.rows);
+
+
+    }
+
+    catch (err) {
+        console.log(err);
+        res.status(500).json({message: "There is an error"});
+    }
+
+    
+
+
+
+} )
+
+app.get ('/orders', checkUserDependingOnToken, async (req,res) => {
+    
+    var user_id = res.locals.user_id;
+
+    try {
+        
+        var queryResult = await client.query(queryBuilder.getOrders(), [user_id]);
+        console.log(queryResult.rows);
+        res.status(200).send(queryResult.rows);
+    }
+
+    catch (err) {
+        console.log(err);
+        res.status(500).json({message: "There is an error"})
+    }
+})
+
+
+
 app.listen(80, () => {
    console.log("Listening on port 80");
 } )
