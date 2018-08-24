@@ -1,11 +1,16 @@
+require('dotenv').config();
 var express = require ('Express');
 var app = express();
 var pg = require('pg');
 var crypto = require('crypto');
 const queryBuilder = require ('./queryBuilder');
 const generateToken = require('./token');
+const AWS = require('aws-sdk');
+
+const fileUpload = require('express-fileupload');
 
 app.use(express.json());
+app.use(fileUpload());
 
 var secretKey = 'secretKey';
 const client = new pg.Client({
@@ -16,10 +21,45 @@ const client = new pg.Client({
     port: 5432,
   })
   client.connect();
+  var s3 = new AWS.S3({region: process.env.REGION});
 
- 
+  app.post('/upload', async (req,res) => {
+    try {
+        console.log('Request has started');
+   // AWS.config.update({ accessKeyId: process.env.ACCESS_KEY_ID, secretAccessKey: process.env.SECRET_ACCESS_KEY, region: process.env.REGION});
+    
+    if (!req.files){ 
+             return res.status(400).send('No files were uploaded.')
+            }
 
+    var sampleFile = req.files.imageKey;
 
+    var myBucket = 'products.images';
+      
+        var arraySplitImageName = sampleFile.name.split(".");
+        var keyName = arraySplitImageName[0]+ '_'+ Date.now() +'.' +arraySplitImageName[1];
+        console.log(keyName);
+    var params = {
+        Bucket: myBucket,
+        Key: keyName,
+        Body: sampleFile.data
+    };
+
+    console.log(params);
+    var result = await putObjectAsync(params);
+    return res.status(200).json({"The result is" : result});
+    }  
+    
+    catch(err){
+        console.log(err);
+        return res.status(500).json({message: "Something went wrong"});
+    }
+    
+    
+  })
+    
+
+  
 app.post('/signup', async (req,res) => {
 
     var first_name = req.body.first_name;
@@ -134,11 +174,25 @@ async function checkUserDependingOnToken(req,res,next){
     } 
 }
 
+async function putObjectAsync(params){
+    return new Promise(function(resolve,reject){
+        s3.putObject(params, function(err,data) {
+            if(err){
+                console.log('Error uploading data', err);
+                reject(err);
+            } else{
+                console.log('Successfully uploaded data', data);
+                resolve(data);
+            }
+        });
+    });
+}
+
 app.post('/product', checkUserDependingOnToken, async (req,res) => {
+    var sampleFile = req.files.imageKey;
     var product_name = req.body.product_name;
     var price = req.body.price;
     var category = req.body.category;
-    var imageurl = req.body.imageurl;
     var description = req.body.description;
     var user_id = res.locals.user_id;
 
@@ -154,13 +208,24 @@ app.post('/product', checkUserDependingOnToken, async (req,res) => {
         return res.status(400).json({message : "Please enter a category"});
     }
 
-    if(!imageurl) {
-        return res.status(400).json({message : "Please enter image url"});
+    if (!req.files){ 
+        return res.status(400).send('No files were uploaded.')
     }
-    
-
     try {
-        var queryResult = await client.query(queryBuilder.createProduct(),[product_name, price, category, imageurl,description,user_id]);
+        var myBucket = 'products.images';
+      
+        var arraySplitImageName = sampleFile.name.split(".");
+        var keyName = arraySplitImageName[0]+ '_'+ Date.now() +'.' +arraySplitImageName[1];
+        var params = {
+            Bucket: myBucket,
+            Key: keyName,
+            Body: sampleFile.data
+    };
+
+    var result = await putObjectAsync(params);
+    var imageUrl = 'https://s3.eu-central-1.amazonaws.com/products.images/'+keyName;
+ 
+        var queryResult = await client.query(queryBuilder.createProduct(),[product_name, price, category,imageUrl,description,user_id]);
         console.log(queryResult.rows);
 
         res.status(200).json({product: queryResult.rows});
@@ -245,8 +310,11 @@ app.get('/productsByUser', checkUserDependingOnToken, async (req,res) => {
 
 app.post('/order', checkUserDependingOnToken, async (req,res) => {
     try {
+       
         var product_id = req.body.product_id;
+        console.log(product_id);
         var user_id = res.locals.user_id;
+        console.log(user_id);
 
         if(!product_id) {
             return res.status(400).json({message: "Please choose some item"});
@@ -307,4 +375,4 @@ app.get ('/orders', checkUserDependingOnToken, async (req,res) => {
 
 app.listen(80, () => {
    console.log("Listening on port 80");
-} )
+});

@@ -17,7 +17,10 @@
   },
   "homepage": "https://github.com/ema996/thrift_shop#readme",
   "dependencies": {
+    "aws-sdk": "^2.299.0",
+    "dotenv": "^6.0.0",
     "express": "^4.16.3",
+    "express-fileupload": "^0.4.0",
     "nodejs-base64-encode": "0.0.2",
     "pg": "^7.4.3",
     "randomstring": "^1.1.5"
