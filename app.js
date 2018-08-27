@@ -11,41 +11,20 @@ app.use(express.json());
 app.use(fileUpload());
 var secretKey = 'secretKey';
 
+//Connection with database
 const client = new pg.Client({
-    user: 'postgres',
-    host: 'localhost',
-    database: 'thrift_shop',
-    password: 'admin',
-    port: 5432,
+    user: process.env.DB_USER,
+    host: process.env.DB_HOST,
+    database: process.env.DB_DATABASE,
+    password: process.env.DB_PASS,
+    port: process.env.DB_PORT,
 })
+
+
 client.connect();
 var s3 = new AWS.S3({region: process.env.REGION});
 
-app.post('/upload', async (req,res) => {
-    try {
-        console.log('Request has started');
-        if (!req.files){ 
-            return res.status(400).send('No files were uploaded.')
-        }
-        var sampleFile = req.files.imageKey;
-        var myBucket = 'products.images';
-        var arraySplitImageName = sampleFile.name.split(".");
-        var keyName = arraySplitImageName[0]+ '_'+ Date.now() +'.' +arraySplitImageName[1];
-        console.log(keyName);
-        var params = {
-            Bucket: myBucket,
-            Key: keyName,
-            Body: sampleFile.data
-        };
-        console.log(params);
-        var result = await putObjectAsync(params);
-        return res.status(200).json({"The result is" : result});
-    } catch(err) {
-        console.log(err);
-        return res.status(500).json({message: "Something went wrong"});
-    }
-})
-    
+//Endpoint for creating (registering) new user
 app.post('/signup', async (req,res) => {
 
     var first_name = req.body.first_name;
@@ -93,6 +72,7 @@ app.post('/signup', async (req,res) => {
     } 
 })
 
+//Endpoint for loging
 app.post('/login', async(req,res) => {
     var username = req.body.username;
     var pass = req.body.pass;
@@ -122,6 +102,7 @@ app.post('/login', async(req,res) => {
     } 
 })
 
+//Middleware function for validating user
 async function checkUserDependingOnToken(req,res,next){
     var token = req.headers.token;
 
@@ -162,8 +143,9 @@ async function putObjectAsync(params){
     });
 }
 
+//Endpoint for creating new product
 app.post('/product', checkUserDependingOnToken, async (req,res) => {
-    var sampleFile = req.files.imageKey;
+    var sampleFile = req.files.image;
     var product_name = req.body.product_name;
     var price = req.body.price;
     var category = req.body.category;
@@ -190,13 +172,13 @@ app.post('/product', checkUserDependingOnToken, async (req,res) => {
         var myBucket = 'products.images';
       
         var arraySplitImageName = sampleFile.name.split(".");
-        var keyName = arraySplitImageName[0]+ '_'+ Date.now() +'.' +arraySplitImageName[1];
+        var keyName = user_id+'/'+arraySplitImageName[0]+ '_'+ Date.now() +'.' +arraySplitImageName[1];
         var params = {
             Bucket: myBucket,
             Key: keyName,
             Body: sampleFile.data
-    };
-
+        };
+        console.log(sampleFile.data);
         var result = await putObjectAsync(params);
         var imageUrl = 'https://s3.eu-central-1.amazonaws.com/products.images/'+keyName;
         var queryResult = await client.query(queryBuilder.createProduct(),[product_name, price, category,imageUrl,description,user_id]);
@@ -210,7 +192,7 @@ app.post('/product', checkUserDependingOnToken, async (req,res) => {
     
 })
 
-
+//Endpoint getting all products
 app.get('/products', async (req,res)=> {
     try {
         var result = await client.query(queryBuilder.getProducts());
@@ -227,6 +209,7 @@ app.get('/products', async (req,res)=> {
     }
 })
 
+//Endpoint for getting one certain product using its id
 app.get('/product/:id', async (req,res) => {
     var product_id = req.params.id;
     console.log(product_id);
@@ -245,7 +228,7 @@ app.get('/product/:id', async (req,res) => {
     }
 })
 
-
+//Endpoint for getting products that a certain user owns
 app.get('/productsByUser', checkUserDependingOnToken, async (req,res) => {
    try {
         var user_id = res.locals.user_id;
@@ -258,7 +241,7 @@ app.get('/productsByUser', checkUserDependingOnToken, async (req,res) => {
    }
 })
 
-
+//Endpoint for creating order
 app.post('/order', checkUserDependingOnToken, async (req,res) => {
     try {
         var product_id = req.body.product_id;
@@ -292,6 +275,7 @@ app.post('/order', checkUserDependingOnToken, async (req,res) => {
     }
 })
 
+//Endpoint for getting all orders
 app.get ('/orders', checkUserDependingOnToken, async (req,res) => {
     var user_id = res.locals.user_id;
     try {
