@@ -186,7 +186,7 @@ app.put('/changePassword', checkUserDependingOnToken, async(req,res) => {
         if(newPasw==confirmNewPasw){
             var hash = crypto.createHash('sha256').update(newPasw).digest('base64');
             var result = await client.query(queryBuilder.setNewPassword(),[hash,user_id]);
-            res.send(result);
+            res.send(resultl);
 
         } else {
             res.status(400).json({message: "Your new password and confirmation pasw do not match"});
