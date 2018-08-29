@@ -1,9 +1,10 @@
+// Insert new user in the database.
 function createUser () {
     return `INSERT INTO T_USER (first_name, last_name, username, pass, balance,token)
             VALUES ($1, $2, $3, $4, $5, $6)`;
-
 }
 
+// TODO: Write comments for each function.
 function checkIfUserExist() {
     return `SELECT * FROM T_USER WHERE username=$1`;
 }
