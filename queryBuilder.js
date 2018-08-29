@@ -76,6 +76,21 @@ function getOrders () {
     `
 }
 
+function checkOldPassword(){
+    return `
+        SELECT pass FROM T_USER WHERE user_id=$1
+    `
+} 
+
+
+function setNewPassword() {
+    return `
+        UPDATE T_USER 
+        SET pass = $1 
+        WHERE user_id = $2;
+  `
+}
+
 
  module.exports = {  
     createUser,
@@ -89,5 +104,7 @@ function getOrders () {
     checkingPriceAndOwnerId,
     checkBalance,
     createOrder,
-    getOrders
+    getOrders,
+    checkOldPassword,
+    setNewPassword
 }

@@ -11,8 +11,8 @@ app.use(express.json());
 app.use(fileUpload());
 var secretKey = 'secretKey';
 
-//Connection with database
-const client = new pg.Client({
+//Making connection
+const pool = new pg.Pool({
     user: process.env.DB_USER,
     host: process.env.DB_HOST,
     database: process.env.DB_DATABASE,
@@ -21,12 +21,13 @@ const client = new pg.Client({
 })
 
 
-client.connect();
+
+
 var s3 = new AWS.S3({region: process.env.REGION});
 
 //Endpoint for creating (registering) new user
 app.post('/signup', async (req,res) => {
-
+    const client = await pool.connect();
     var first_name = req.body.first_name;
     var last_name = req.body.last_name;
     var username = req.body.username;
@@ -69,11 +70,14 @@ app.post('/signup', async (req,res) => {
     } catch (err) {
         console.log(err);
         return res.status(500).json('There is an error');
-    } 
+    } finally {
+        client.release();
+    }
 })
 
 //Endpoint for loging
 app.post('/login', async(req,res) => {
+    const client = await pool.connect();
     var username = req.body.username;
     var pass = req.body.pass;
 
@@ -99,7 +103,9 @@ app.post('/login', async(req,res) => {
     } catch (err) {
         console.log(err);
         return res.status(500).json('There is an error');
-    } 
+    } finally {
+        client.release();
+    }
 })
 
 //Middleware function for validating user
@@ -109,7 +115,7 @@ async function checkUserDependingOnToken(req,res,next){
     if(!token){
         return res.status(401).json({message : "Unathorized"});
     }
-
+    const client = await pool.connect();
     try {
         var result = await client.query(queryBuilder.findUserByToken(),[token]);
         console.log(result.rows);
@@ -126,7 +132,9 @@ async function checkUserDependingOnToken(req,res,next){
     catch(err){
         console.log(err);
         return res.status(500).json('There is an error');
-    } 
+    } finally {
+        client.release();
+    }
 }
 
 async function putObjectAsync(params){
@@ -143,8 +151,60 @@ async function putObjectAsync(params){
     });
 }
 
+//Endpoint for changing a password
+app.put('/changePassword', checkUserDependingOnToken, async(req,res) => {
+    var oldPasw=req.body.oldPasw;
+    var newPasw=req.body.newPasw;
+    var confirmNewPasw=req.body.confirmNewPasw;
+    var user_id= res.locals.user_id;
+    const client = await pool.connect();
+
+    if(!oldPasw){
+        res.status(400).json({message: "Please enter your old password"});
+    }
+
+    if(!newPasw){
+        return res.status(400).json({message: "Please enter your new password"});
+    }
+
+    if(!confirmNewPasw){
+        return res.status(400).json({message: "Please confirm your password"});
+    }
+
+    try{
+        var checkOldPasw = await client.query(queryBuilder.checkOldPassword(),[user_id]);
+
+        if(checkOldPasw.rowCount==0){
+            res.status(404).json({message: "User not found"});
+        }
+
+        var hashOldPasw = crypto.createHash('sha256').update(oldPasw).digest('base64');
+        if(checkOldPasw.rows[0].pass!=hashOldPasw) {
+            res.status(400).json({message: "Please enter your VALID old password"});
+        }
+
+        if(newPasw==confirmNewPasw){
+            var hash = crypto.createHash('sha256').update(newPasw).digest('base64');
+            var result = await client.query(queryBuilder.setNewPassword(),[hash,user_id]);
+            res.send(result);
+
+        } else {
+            res.status(400).json({message: "Your new password and confirmation pasw do not match"});
+        }
+
+
+    } catch (err){
+        console.log(err);
+        return res.status(500).json('There is an error');
+    } finally {
+        client.release();
+    }
+
+})
+
 //Endpoint for creating new product
 app.post('/product', checkUserDependingOnToken, async (req,res) => {
+    const client = await pool.connect();
     var sampleFile = req.files.image;
     var product_name = req.body.product_name;
     var price = req.body.price;
@@ -188,12 +248,14 @@ app.post('/product', checkUserDependingOnToken, async (req,res) => {
     catch (err) {
         console.log(err);
         return res.status(500).json('There is an error'); 
+    } finally {
+        client.release();
     }
-    
 })
 
 //Endpoint getting all products
 app.get('/products', async (req,res)=> {
+    const client = await pool.connect();
     try {
         var result = await client.query(queryBuilder.getProducts());
     
@@ -206,11 +268,14 @@ app.get('/products', async (req,res)=> {
     } catch (err){
         console.log(err);
         return res.status(500).json('There is an error'); 
+    } finally {
+        client.release();
     }
 })
 
 //Endpoint for getting one certain product using its id
 app.get('/product/:id', async (req,res) => {
+    const client = await pool.connect();
     var product_id = req.params.id;
     console.log(product_id);
     try {
@@ -225,11 +290,14 @@ app.get('/product/:id', async (req,res) => {
     } catch (err){
         console.log(err);
         return res.status(500).json('There is an error'); 
+    } finally {
+        client.release();
     }
 })
 
 //Endpoint for getting products that a certain user owns
 app.get('/productsByUser', checkUserDependingOnToken, async (req,res) => {
+    const client = await pool.connect();
    try {
         var user_id = res.locals.user_id;
         var queryResult = await client.query(queryBuilder.getProductsByUserId(),[user_id]);
@@ -238,11 +306,14 @@ app.get('/productsByUser', checkUserDependingOnToken, async (req,res) => {
    } catch (err) {
         console.log(err);
         return res.status(500).json('There is an error'); 
-   }
+   } finally {
+    client.release();
+}
 })
 
 //Endpoint for creating order
 app.post('/order', checkUserDependingOnToken, async (req,res) => {
+    const client = await pool.connect();
     try {
         var product_id = req.body.product_id;
         console.log(product_id);
@@ -272,11 +343,14 @@ app.post('/order', checkUserDependingOnToken, async (req,res) => {
     } catch (err) {
         console.log(err);
         res.status(500).json({message: "There is an error"});
+    } finally {
+        client.release();
     }
 })
 
 //Endpoint for getting all orders
 app.get ('/orders', checkUserDependingOnToken, async (req,res) => {
+    const client = await pool.connect();
     var user_id = res.locals.user_id;
     try {
         var queryResult = await client.query(queryBuilder.getOrders(), [user_id]);
@@ -285,6 +359,8 @@ app.get ('/orders', checkUserDependingOnToken, async (req,res) => {
     } catch (err) {
         console.log(err);
         res.status(500).json({message: "There is an error"})
+    } finally {
+        client.release();
     }
 })
 
